@@ -1,6 +1,6 @@
 *.py[cod]
-
+.idea
 build
 devel
-
 profile.tmp
+.idea/dictionaries/student.xml
