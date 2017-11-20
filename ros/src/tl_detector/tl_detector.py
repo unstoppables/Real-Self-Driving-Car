@@ -40,6 +40,8 @@ class TLDetector(object):
         simulator. When testing on the vehicle, the color state will not be available. You'll need to
         rely on the position of the light and the camera image to predict it.
         '''
+        # [alexm]NOTE: we should rely on this topic's data except state of the light
+        # [alexm]NOTE: according to this: https://carnd.slack.com/messages/C6NVDVAQ3/convo/C6NVDVAQ3-1504625321.000063/
         rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb, queue_size=1)
         rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
         rospy.Subscriber('/next_wp', Int32, self.next_wp_cb, queue_size=1)
@@ -87,7 +89,7 @@ class TLDetector(object):
             self.stop_lines = None
 
     def find_stop_line_position(self, light):
-        """Finds stop line position from config corresponding to given light
+        """Finds stop line position from config corresponding to given light 
         Args:
             msg (Image): image from car-mounted camera
 
@@ -99,7 +101,7 @@ class TLDetector(object):
         light_pos = light.pose.pose.position
         for pos in stop_line_positions:
             distance = self.euclidean_distance_2d(pos, light_pos)
-            if distance < min_distance:
+            if (distance < min_distance):
                 min_distance = distance
                 result = pos
         return result
@@ -108,16 +110,16 @@ class TLDetector(object):
         if not self.stop_lines and self.KDTree:
             stop_lines = []
             for light in msg.lights:
-
+                # find corresponding stop line position from config
                 stop_line_pos = self.find_stop_line_position(light)
-
+                # find corresponding waypoint indicex
                 closest_index = self.KDTree.query(np.array([stop_line_pos]))[1][0]
                 closest_wp = self.waypoints[closest_index]
                 if not self.is_ahead(closest_wp.pose.pose, stop_line_pos):
                     closest_index = max(closest_index - 1, 0)
-
+                # add index to list
                 stop_lines.append(closest_index)
-
+            # update lights and stop line waypoint indices
             self.lights = msg.lights
             self.stop_lines = stop_lines
 
@@ -129,7 +131,7 @@ class TLDetector(object):
             msg (Image): image from car-mounted camera
 
         """
-        if not self.initialized:
+        if (not self.initialized):
             return
 
         self.has_image = True
@@ -185,7 +187,7 @@ class TLDetector(object):
             rospy.logerr("Failed to find camera to map transform")
 
         if not base_point:
-            return 0, 0
+            return (0, 0)
 
         base_point = base_point.point
 
@@ -226,11 +228,22 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        if not self.has_image:
+        if (not self.has_image):
             self.prev_light_loc = None
             return False
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+
+        # TODO use light location to zoom in on traffic light in image
+        # Projection wont work cuz of absent base_link->world transform on site
+
+        # tl_point = PointStamped()
+        # tl_point.header = light.pose.header
+        # tl_point.point = Point()
+        # tl_point.point.x = light.pose.pose.position.x
+        # tl_point.point.y = light.pose.pose.position.y
+        # tl_point.point.z = light.pose.pose.position.z
+        # x, y = self.project_to_image_plane(tl_point)
 
         # Get classification
         state = self.light_classifier.get_classification(cv_image)
@@ -264,7 +277,7 @@ class TLDetector(object):
         light_wp = -1
         min_distance = 0.
 
-        if self.waypoints and self.next_wp and self.stop_lines:
+        if (self.waypoints and self.next_wp and self.stop_lines):
             next_wp = self.waypoints[min(self.next_wp, len(self.waypoints) - 1)]
             search_distance = self.stop_path(next_wp.twist, MAX_DECEL)
             min_distance = search_distance
@@ -273,7 +286,7 @@ class TLDetector(object):
                 if stop_line_wp_index >= self.next_wp:
                     stop_line_wp = self.waypoints[stop_line_wp_index]
                     distance = self.euclidean_distance_2d(next_wp.pose.pose.position, stop_line_wp.pose.pose.position)
-                    if distance < min_distance:
+                    if (distance < min_distance):
                         light_wp = stop_line_wp_index
                         light = self.lights[i]
                         min_distance = distance

@@ -17,14 +17,13 @@ class TLClassifier(object):
         self.cascade = cv2.CascadeClassifier('./models/cascade.xml')
 
         if keras.__version__ < '2.0.0':
-            model_json = ''
-            with open('./models/m_structure.json', 'r') as file:
+            with open('./models/model_structure.json', 'r') as file:
                 model_json = file.read();
             self.test_model = model_from_json(model_json)
-            self.test_model.load_weights('./models/m_weights.h5')
+            self.test_model.load_weights('./models/model_weights.h5')
         else:
             print 'WARN! Using Keras version {}'.format(keras.__version__)
-            self.test_model = load_model('./models/tl_state_aug_v3.h5')
+            self.test_model = load_model('./models/tl_detector.h5')
         self.graph = tensorflow.get_default_graph()
 
     def non_max_suppression_fast(self, boxes, overlapThresh):
