@@ -295,8 +295,8 @@ class TLDetector(object):
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
-        cv2.imshow('image',cv_image)
-        cv2.waitKey(0)
+        #cv2.imshow('image',cv_image)
+        #cv2.waitKey(0)
 
         # Get classification
         return self.light_classifier.get_classification(cv_image)
