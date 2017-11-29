@@ -63,4 +63,4 @@ if __name__ == '__main__':
     try:
         TLPublisher()
     except rospy.ROSInterruptException:
-        rospy.logerr('Could not start traffic publisher node.')
+	rospy.logerr('Could not start traffic publisher node.')
