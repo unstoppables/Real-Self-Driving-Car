@@ -2,18 +2,15 @@ from styx_msgs.msg import TrafficLight
 import tensorflow as tf
 import cv2
 import numpy as np
+from keras.models import load_model
 
 class TLClassifier(object):
     def __init__(self):
-        self.sess = tf.Session()
-        # Load weights
-        saver = tf.train.import_meta_graph('./light_classification/model.cpkt.meta')
-        graph = tf.get_default_graph()
-        fc3 = graph.get_tensor_by_name("op_to_restore:0")
-        prediction = tf.nn.softmax(fc3)
-        self.top = tf.nn.top_k(prediction, k=1)
-        self.x = graph.get_tensor_by_name("x:0")
-        saver.restore(self.sess, './light_classification/model.cpkt')
+        self.init_ok = False
+        self.model = load_model('./light_classification/1-model-gen.h5')
+        #self.model._make_predict_function()
+        self.graph = tf.get_default_graph()
+        self.init_ok = True
 
 
 
@@ -25,23 +22,33 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
         """
         #return TrafficLight.RED
-        shape = (1, 32, 32, 3)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # is it in BGR or RGB ?
-        image = cv2.resize(image, (32, 32), interpolation=cv2.INTER_CUBIC)
-        img = np.reshape(image, shape)
 
+        # Preprocessing Inception
 
-        top_probability = self.sess.run(self.top, feed_dict={self.x: img})
+        #img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #img = cv2.resize(img, dsize=(400, 400))
+        #img = (img / 255 - 0.5) * 2         # Inception v3 Preprocessing
+        #X = np.reshape(img, (1, 400, 400, 3))
 
-        if top_probability[1][0][0]== 0:
-            print("Red Light!")
-            return TrafficLight.RED
-        elif top_probability[1][0][0]== 1:
-            print("Green Light!")
-            return TrafficLight.GREEN
-        elif top_probability[1][0][0]== 2:
-            print("Yellow Light!")
-            return TrafficLight.YELLOW
+        #cv2.imshow('test',image)
+        #cv2.waitKey(0)
+       # img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(image, dsize=(400, 400))
+        X = img.astype(np.float64) / 255
+        X = np.reshape(X, (1, 400, 400, 3))
+
+        if self.init_ok == True:
+            with self.graph.as_default():
+                pred = self.model.predict(X)
+                top_probability = np.argmax(pred)
+
+            if top_probability== 0:
+                print("Red Light!")
+                return TrafficLight.RED
+
+            else:
+                print("No Red Light!")
+                return TrafficLight.UNKNOWN
+
         else:
-            print("Unknown Light!")
             return TrafficLight.UNKNOWN
