@@ -7,19 +7,22 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 - Torben Fischer (Traffic light classification, Integration)
 
 ### Approach
+
 * Traffic Light Detection and Classification
+
 To classify the traffic lights we followed two different approaches. 
 
 The first one included two separate models: a retrained model based on Faster-R-CNN for the traffic light detection, which is using the Tensorflow Object Detection API and a CNN classifier based on LeNet, which classifies the cropped image of the light into green, yellow and red. The input size of the images are 32x32x3. 
 
 The Training data consisted of real life images, taken from the Bosch Dataset. For the classifier, the annotated boxes in the Bosch dataset were using to crop the image to the light. The dataset was then extended by images taken from the simulator. These images had to be labeled manually by drawing boxes with Sloth (https://github.com/cvhciKIT/sloth).
 
-The second approach uses a CNN classifier to classify the camera raw images into red traffic light or no red traffic light. This approach works alot faster, but might be of disadvantage in real life testing. It is inspired and based on a CNN architecture found at another team: https://github.com/ksmith6/sdc-capstone
+The second approach uses a CNN classifier to classify the camera raw images into red traffic light or no red traffic light. This approach works alot faster, but might be of disadvantage in real life testing. It is inspired and based on a CNN architecture found at another team: https://github.com/ksmith6/sdc-capstone 
+
 The dataset for this classifier was also based on the Bosch dataset and simulator images. The input size of the images are 400x400x3. 
 
 
 Layer (type)                     Output Shape          Param #     Connected to                     
-______________________________________________________________________________________________________-
+____________________________________________________________________________________________________
 convolution2d_1 (Convolution2D)  (None, 398, 398, 32)  896         convolution2d_input_1[0][0]      
 ____________________________________________________________________________________________________
 convolution2d_2 (Convolution2D)  (None, 396, 396, 32)  9248        convolution2d_1[0][0]            
@@ -61,6 +64,8 @@ ________________________________________________________________________________
 Total params: 122,306
 Trainable params: 122,306
 Non-trainable params: 0
+
+
 
 
 
