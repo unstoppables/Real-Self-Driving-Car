@@ -1,5 +1,23 @@
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
 
+### Team Members
+Venugopala Krishna Bhat (Waypoint logic)
+Satish Avhad (Control of acceleration and deceleration)
+Gaylord Marville (Traffic light detection and classifcation)
+Torben Fischer (Traffic light classification)
+
+### Approach
+* Traffic Light Detection and Classification
+To classify the traffic lights we followed two different approaches. 
+
+The first one included two separate models: a retrained model based on Faster-R-CNN for the traffic light detection, which is using the Tensorflow Object Detection API and a CNN classifier based on LeNet, which classifies the cropped image of the light into green, yellow and red. 
+
+The second approach uses a CNN classifier to classify the camera raw images into red traffic light or no red traffic light. This approach works alot faster, but might be of disadvantage in real life testing. 
+
+
+
+### Installion Instructions (from Udacity)
+
 ### Native Installation
 
 * Be sure that your workstation is running Ubuntu 16.04 Xenial Xerus or Ubuntu 14.04 Trusty Tahir. [Ubuntu downloads can be found here](https://www.ubuntu.com/download/desktop).
