@@ -7,6 +7,7 @@ from std_msgs.msg import Bool, Int32, Float32
 import copy
 import math
 import time
+import tf
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -66,7 +67,7 @@ def build_kdtree(points, depth=0):
 
 
 def closer_distance(pivot, p1, p2):
-    """Determine whether right side point or left 
+    """Determine whether right side point or left
     side point is closest to the pivot.
     Args:
         pivot: Pivot coordinate (xp, yp)
@@ -91,7 +92,7 @@ def closer_distance(pivot, p1, p2):
 
 
 def kdtree_closest_point(root, point, depth=0):
-    """Determine whether right side point or left 
+    """Determine whether right side point or left
     side point is closest to the pivot.
     Args:
         root: The K-d Tree for the set of point which is a deep nested list
@@ -143,7 +144,7 @@ class WaypointUpdater(object):
         # TODO: Add a subscriber for /traffic_waypoint
         # and /obstacle_waypoint below
         # commented the below two subscribers for the first phase of project
-        # rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
         # rospy.Subscriber('/obstacle_waypoint', PoseStamped, self.obstacle_cb)
 
         # Adding Subscriber to get current vehicle (linear) velocity to
@@ -158,8 +159,10 @@ class WaypointUpdater(object):
         self.track = None
         self.tracklen = None
 
+        self.pose = None
         self.pose_position = None
         self.current_velocity = None
+        self.red_light_waypoint = None
 
         self.kdtree = None
 
@@ -185,6 +188,7 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         self.pose_position = msg.pose.position
+        self.pose = msg.pose
 
     def waypoints_cb(self, waypoints):
         self.track = waypoints
@@ -203,8 +207,7 @@ class WaypointUpdater(object):
         self.kdtree = build_kdtree(self.waypoints_list)
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        self.red_light_waypoint = msg.data
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it
@@ -263,6 +266,72 @@ class WaypointUpdater(object):
         else:
             return 0
 
+    def dll(self,a, b):
+        return math.sqrt((a.x - b.x) ** 2 +
+                         (a.y - b.y) ** 2 +
+                         (a.z - b.z) ** 2)
+
+    def accelerate_or_keep_velocity(self, ci):
+
+        def dl(a, b):
+            return math.sqrt((a.x - b.x) ** 2 +
+                            (a.y - b.y) ** 2 +
+                            (a.z - b.z) ** 2)
+        lane = Lane()
+        lane.header.stamp = rospy.Time.now()
+
+        i = 0
+        v0 = self.current_velocity
+        vi = v0
+        a = self.MAX_ACCEL
+        while i < LOOKAHEAD_WPS:
+            if i:
+                d = dl(self.track.waypoints[(ci + i - 1) % self.tracklen].pose.pose.position, self.track.waypoints[(ci + i) % self.tracklen].pose.pose.position)
+            else:
+                d = dl(self.pose_position, self.track.waypoints[(ci + i) % self.tracklen].pose.pose.position)
+
+            if lane.waypoints:
+                vi = lane.waypoints[-1].twist.twist.linear.x
+
+            vi = vi + (a * (d / vi))
+            if vi > self.MAX_SPEED:
+                vi = self.MAX_SPEED
+            current_wp = copy.deepcopy(
+                self.track.waypoints[(ci + i) % self.tracklen])
+            current_wp.twist.twist.linear.x = vi
+            lane.waypoints.append(current_wp)
+            i += 1
+
+        return lane
+
+    def decelerate_or_stop(self, ci, red_light_index):
+        tolerance_distance = 5
+        lane = Lane()
+        lane.header.stamp = rospy.Time.now()
+
+        i = 0
+        v0 = self.current_velocity
+        vi = v0
+        a = -10.0 #self.MAX_DECEL
+        red_light_waypoint = self.track.waypoints[red_light_index]
+        while i < LOOKAHEAD_WPS:
+            if (i+ci) > red_light_index:
+                vi = 0
+            else:
+                d = self.dll(red_light_waypoint.pose.pose.position, self.track.waypoints[(ci + i) % self.tracklen].pose.pose.position)
+                d = max(0, (d-tolerance_distance))
+                vi = math.sqrt(2*a*d)
+                if vi < 0:
+                    vi = 0.0
+            current_wp = copy.deepcopy(self.track.waypoints[(ci + i) % self.tracklen])
+            current_wp.twist.twist.linear.x = vi
+            lane.waypoints.append(current_wp)
+            i += 1
+
+        return lane
+
+
+
     def publish_final_wps(self):
 
         def get_next_index(car_position):
@@ -319,61 +388,48 @@ class WaypointUpdater(object):
 
             return index_car_position
 
-        def dl(a, b):
-            return math.sqrt((a.x - b.x) ** 2 +
-                             (a.y - b.y) ** 2 +
-                             (a.z - b.z) ** 2)
 
         if self.track and self.pose_position and self.current_velocity:
 
             # find closest waypoint to the vehicle on the track
-            # closest_wp_index = self.find_closest_wp()
-            # ci = closest_wp_index
+            closest_wp_index = self.find_closest_wp()
+            ci = closest_wp_index
+            #But this index might be some times before or after the current car position
+            #If this position is behind the car then we might need to increment the ind
+            # Approach is same as in Path Planning Project
+            # https://github.com/vkrishnam/SDCND_PathPlanning/blob/51876c3ee62703d88877e3a706943fd2ad510c33/src/main.cpp#L66
+            map_x = self.track.waypoints[closest_wp_index].pose.pose.position.x
+            map_y = self.track.waypoints[closest_wp_index].pose.pose.position.y
+            car_heading_direction_wrt_closest_wp = math.atan2((map_y - self.pose.position.y), (map_x - self.pose.position.x))
+            # Quaternion Info in ROS
+            # http://docs.ros.org/api/geometry_msgs/html/msg/Quaternion.html
+            # http://ros-robotics.blogspot.in/2015/04/getting-roll-pitch-and-yaw-from.html
+            # Quaternion to Euler angles
+            # http://nullege.com/codes/search/tf.transformations.euler_from_quaternion
+            # https://answers.ros.org/question/69754/quaternion-transformations-in-python/
+            quaternion = (self.pose.orientation.x, self.pose.orientation.y, self.pose.orientation.z, self.pose.orientation.w)
+            pitch, roll, yaw = tf.transformations.euler_from_quaternion(quaternion)
+            angle = abs(yaw - car_heading_direction_wrt_closest_wp)
+            if angle > (math.pi / 4): #Greater than 45 degress then         
+                ci += 1
 
-            car_position = self.get_closest_waypoint(self.pose_position)
 
-            ci = 0
 
-            vehicle_posx = self.pose_position.x
-            vehicle_posy = self.pose_position.y
+            #car_position = self.get_closest_waypoint(self.pose_position)
+            #
+            #ci = 0
+            #vehicle_posx = self.pose_position.x
+            #vehicle_posy = self.pose_position.y
+            ## This get_next_index() fucntion is faulty to the extent that input argument is integer
+            ## Inside the function it dereference as if it is an array
+            #index_car_position = get_next_index(car_position)
+            #index_car_position = car_position
+            #ci = index_car_position
 
-            if car_position:
-
-                index_car_position = get_next_index(car_position)
-
-                ci = index_car_position
-
-            lane = Lane()
-            lane.header.stamp = rospy.Time.now()
-
-            i = 0
-            v0 = self.current_velocity
-            vi = v0
-            a = self.MAX_ACCEL
-            while i < LOOKAHEAD_WPS:
-                # d = dl(self.pose_position, self.track.waypoints[(
-                #     ci + i) % self.tracklen].pose.pose.position)
-                if i:
-                    d = dl(self.track.waypoints[(
-                        ci + i - 1) % self.tracklen].pose.pose.position,
-                        self.track.waypoints[(
-                            ci + i) % self.tracklen].pose.pose.position)
-                else:
-                    d = dl(self.pose_position, self.track.waypoints[(
-                        ci + i) % self.tracklen].pose.pose.position)
-
-                if lane.waypoints:
-                    vi = lane.waypoints[-1].twist.twist.linear.x
-
-                vi = vi + (a * (d / vi))
-                if vi > self.MAX_SPEED:
-                    vi = self.MAX_SPEED
-                current_wp = copy.deepcopy(
-                    self.track.waypoints[(ci + i) % self.tracklen])
-                current_wp.twist.twist.linear.x = vi
-                lane.waypoints.append(current_wp)
-                i += 1
-
+            if self.red_light_waypoint is None or self.red_light_waypoint < 0:
+                lane = self.accelerate_or_keep_velocity(ci)
+            else:
+                lane = self.decelerate_or_stop(ci, self.red_light_waypoint)
             # Now publish this list
             self.final_waypoints_pub.publish(lane)
             return
@@ -383,4 +439,4 @@ if __name__ == '__main__':
     try:
         WaypointUpdater()
     except rospy.ROSInterruptException:
-	rospy.logerr('Could not start waypoint updater node.')
+        rospy.logerr('Could not start waypoint updater node.')
