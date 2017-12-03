@@ -1,3 +1,6 @@
+UNSTOPPABLES
+================================================
+
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
 
 ### Team Members
@@ -76,12 +79,14 @@ To find the closest path waypoint to the upcoming traffic light, we divide the p
 
 How to solve the complexity problem of calculating distances over large
 set of points in a reasonable amount of time. Here we used the so called "Kd Tree algorithm"
-(k-dimensional tree) which is one solution to the Nearest neighbor search problem (NNS)
+(k-dimensional tree), which is one solution to the Nearest neighbor search problem (NNS)
 which is the optimization problem of finding the point in a given set that is closest
 (or most similar) to a given point https://en.wikipedia.org/wiki/Nearest_neighbor_search
-note: this algorithm work for K dimension but we are using it for 2 here.
+
+Note: this algorithm work for K dimension, but we are using it for 2 here.
 This method implies to first build a tree of our set of points using recursivity,
 and then search in that tree the closest point to our target point.
+
 Complexity:
 Given a set S of points in a space M, the naive method has a running time of O(dN), where N is the cardinality of S and d is the dimensionality of M.The K-d Tree method is O(log n) complex.
 
