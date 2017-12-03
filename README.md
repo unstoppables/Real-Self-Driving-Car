@@ -65,7 +65,27 @@ Total params: 122,306
 Trainable params: 122,306
 Non-trainable params: 0
 
+* Waypoint Logic
 
+
+To find the closest path waypoint to the upcoming traffic light, we divide the problem in 3 parts:
+
+1) find the closest path waypoint to our current vehicule position (car_position)
+2) find the closest red light's stop line to "car_position" (closest_tl)
+3) find the closest path waypoint to "closest_tl"
+
+How to solve the complexity problem of calculating distances over large
+set of points in a reasonable amount of time. Here we used the so called "Kd Tree algorithm"
+(k-dimensional tree) which is one solution to the Nearest neighbor search problem (NNS)
+which is the optimization problem of finding the point in a given set that is closest
+(or most similar) to a given point https://en.wikipedia.org/wiki/Nearest_neighbor_search
+note: this algorithm work for K dimension but we are using it for 2 here.
+This method implies to first build a tree of our set of points using recursivity,
+and then search in that tree the closest point to our target point.
+Complexity:
+Given a set S of points in a space M, the naive method has a running time of O(dN), where N is the cardinality of S and d is the dimensionality of M.The K-d Tree method is O(log n) complex.
+
+A good youtube video about K-d trees https://youtu.be/u4M5rRYwRHs
 
 
 
